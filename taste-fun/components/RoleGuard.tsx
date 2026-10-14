@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth, type Role } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Renders children only for the allowed role. Any other (or missing) role is
@@ -11,6 +12,7 @@ import { useAuth, type Role } from "@/lib/auth";
  */
 export function RoleGuard({ allow, children }: { allow: Role; children: React.ReactNode }) {
   const { role, ready } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const permitted = ready && role === allow;
 
@@ -22,7 +24,7 @@ export function RoleGuard({ allow, children }: { allow: Role; children: React.Re
     return (
       <div className="flex min-h-screen items-center justify-center gap-2 text-sm text-slate-500">
         <Loader2 className="size-4 animate-spin" />
-        جارٍ التحقق من الصلاحيات…
+        {t("app.checkingAccess")}
       </div>
     );
   }

@@ -1,26 +1,26 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { Key } from "./i18n";
+import type { L } from "./mock-data";
 
 export type Role = "owner";
 
 export interface RoleInfo {
-  label: string;
-  english: string;
   route: string;
-  user: string;
-  scope: string;
-  description: string;
+  user: L;
+  label: Key;
+  scope: Key;
+  description: Key;
 }
 
 export const ROLES: Record<Role, RoleInfo> = {
   owner: {
-    label: "المالك",
-    english: "Owner",
     route: "/owner",
-    user: "خالد المنصوري",
-    scope: "جميع الفروع",
-    description: "لوحة المؤشرات والمبيعات وحالة إغلاق الفروع والموافقات",
+    user: { ar: "خالد المنصوري", en: "Khaled Al Mansouri" },
+    label: "role.owner",
+    scope: "role.owner.scope",
+    description: "role.owner.desc",
   },
 };
 

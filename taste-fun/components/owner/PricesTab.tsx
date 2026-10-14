@@ -1,14 +1,16 @@
 "use client";
 
 import { Lightbulb, TrendingUp } from "lucide-react";
-import { useOwner, money } from "@/lib/owner-store";
-import { GROUP_BUY, PRICE_ROWS } from "@/lib/mock-data";
+import { useOwner } from "@/lib/owner-store";
+import { useI18n } from "@/lib/i18n";
+import { GROUP_BUY, PRICE_ROWS, UNITS } from "@/lib/mock-data";
 import { cn, fmt } from "@/lib/format";
 import { Badge, Button, Card, CardHeader } from "../ui";
 import { Kpi, KpiRow, Notice, Table, Td, Th } from "./common";
 
 export function PricesTab() {
   const { names, notify } = useOwner();
+  const { t, tr, money } = useI18n();
   const rows = PRICE_ROWS.map((p) => ({
     ...p,
     change: ((p.last - p.avg3m) / p.avg3m) * 100,
@@ -23,29 +25,20 @@ export function PricesTab() {
   return (
     <div className="space-y-6">
       <KpiRow>
-        <Kpi
-          hero
-          label="أصناف سعرها زاد"
-          value={
-            <>
-              {increased} <span className="text-lg font-medium text-slate-300">من {rows.length}</span>
-            </>
-          }
-          footer="كل فاتورة شراء بتحدّث السعر تلقائيًا"
-        />
-        <Kpi alert label="دفعت زيادة هذا الشهر" value={money(extra)} valueClass="text-red-600" />
-        <Kpi label="التوفير بأفضل الأسعار" value={money(saving)} valueClass="text-emerald-600" />
-        <Kpi label="فرصة شراء مجمع" value={money(groupBuy)} footer="في الشهر" />
+        <Kpi hero label={t("pr.increased")} value={t("pr.countOf", { a: increased, b: rows.length })} footer={t("pr.autoUpdate")} />
+        <Kpi alert label={t("pr.extra")} value={money(extra)} valueClass="text-red-600" />
+        <Kpi label={t("pr.saving")} value={money(saving)} valueClass="text-emerald-600" />
+        <Kpi label={t("pr.groupBuy")} value={money(groupBuy)} footer={t("pr.perMonth")} />
       </KpiRow>
 
       <Card>
         <CardHeader
           icon={<TrendingUp className="size-5" />}
-          title="مراقبة أسعار الموردين"
-          subtitle="كل فاتورة شراء بتحدّث السعر تلقائيًا، وبيوصلك تنبيه لما مورد يرفع سعره."
+          title={t("pr.title")}
+          subtitle={t("pr.hint")}
           action={
-            <Button size="sm" variant="secondary" onClick={() => notify("تم إرسال طلب عرض سعر لـ3 موردين")}>
-              اطلب عرض سعر من 3 موردين
+            <Button size="sm" variant="secondary" onClick={() => notify(t("toast.quotesSent"))}>
+              {t("pr.askQuotes")}
             </Button>
           }
         />
@@ -53,21 +46,21 @@ export function PricesTab() {
           minWidth={900}
           head={
             <>
-              <Th>الصنف</Th>
-              <Th>المورد</Th>
-              <Th end>آخر سعر</Th>
-              <Th end>متوسط 3 شهور</Th>
-              <Th end>التغيير</Th>
-              <Th end>أفضل سعر حديث</Th>
-              <Th end>تكلفة إضافية هذا الشهر</Th>
-              <Th>الحالة</Th>
+              <Th>{t("pr.item")}</Th>
+              <Th>{t("pr.supplier")}</Th>
+              <Th end>{t("pr.last")}</Th>
+              <Th end>{t("pr.avg")}</Th>
+              <Th end>{t("pr.change")}</Th>
+              <Th end>{t("pr.best")}</Th>
+              <Th end>{t("pr.extraCol")}</Th>
+              <Th>{t("pr.status")}</Th>
             </>
           }
         >
           {rows.map((r) => (
-            <tr key={r.item}>
+            <tr key={r.item.en}>
               <Td>
-                <b className="text-slate-900">{r.item}</b> <span className="text-xs text-slate-400">/ {r.unit}</span>
+                <b className="text-slate-900">{tr(r.item)}</b> <span className="text-xs text-slate-400">/ {tr(UNITS[r.unit])}</span>
               </Td>
               <Td className="text-slate-600">{r.supplier}</Td>
               <Td end className="num font-semibold">{fmt(r.last, 2)}</Td>
@@ -79,7 +72,13 @@ export function PricesTab() {
               <Td end className="num">{fmt(r.best, 2)}</Td>
               <Td end className="num">{r.extra ? money(r.extra) : "—"}</Td>
               <Td>
-                {r.change > 8 ? <Badge tone="danger">زيادة كبيرة</Badge> : r.change > 3 ? <Badge tone="warning">زيادة</Badge> : <Badge tone="success">ثابت</Badge>}
+                {r.change > 8 ? (
+                  <Badge tone="danger">{t("pr.big")}</Badge>
+                ) : r.change > 3 ? (
+                  <Badge tone="warning">{t("pr.some")}</Badge>
+                ) : (
+                  <Badge tone="success">{t("pr.stable")}</Badge>
+                )}
               </Td>
             </tr>
           ))}
@@ -89,9 +88,15 @@ export function PricesTab() {
       <Notice tone="warning">
         <Lightbulb className="size-4 shrink-0" />
         <span>
-          <b>فرصة شراء مجمع:</b> {names.branches.qasr} بيشتري {GROUP_BUY.item} بـ<span className="num">{fmt(GROUP_BUY.qasrPrice, 2)}</span> درهم/كجم، و
-          {names.branches.lulu} بـ<span className="num">{fmt(GROUP_BUY.luluPrice, 2)}</span>. لو اشتريتوا مع بعض من المورد الأرخص، التوفير حوالي{" "}
-          <span className="num">{money(groupBuy)}</span> في الشهر.
+          <b>{t("pr.groupBuy")}:</b>{" "}
+          {t("pr.gbText", {
+            a: tr(names.branches.qasr),
+            b: tr(names.branches.lulu),
+            item: tr(GROUP_BUY.item),
+            pa: fmt(GROUP_BUY.qasrPrice, 2),
+            pb: fmt(GROUP_BUY.luluPrice, 2),
+            amount: money(groupBuy),
+          })}
         </span>
       </Notice>
     </div>

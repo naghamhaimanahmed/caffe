@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertTriangle, LineChart, Radio } from "lucide-react";
-import { useOwner, money, type TabId } from "@/lib/owner-store";
+import { useOwner, type TabId } from "@/lib/owner-store";
+import { useI18n } from "@/lib/i18n";
 import {
   BASE_DAILY,
   BRANCH_IDS,
@@ -20,6 +21,7 @@ import { Bar, BranchDot, Kpi, KpiRow } from "./common";
 
 export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
   const { names, today, history, feed, approvals, alerts, lowStockCount, closings } = useOwner();
+  const { t, tr, money } = useI18n();
 
   const total = today.sales.qasr + today.sales.lulu;
   const yday = today.yesterdaySameTime.qasr + today.yesterdaySameTime.lulu;
@@ -28,18 +30,17 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }
   const badAlerts = alerts.filter((a) => a.severity === "bad");
   const cashDiffs = BRANCH_IDS.filter((b) => closings[b].variance).length;
   const chartData = [...history, { date: isoDate(new Date()), qasr: today.sales.qasr, lulu: today.sales.lulu }];
+  const branchNames = { qasr: tr(names.branches.qasr), lulu: tr(names.branches.lulu) };
 
   return (
     <div className="space-y-6">
       {badAlerts.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertTriangle className="size-4 shrink-0" />
-          <b>
-            <span className="num">{badAlerts.length}</span> تنبيهات مهمة
-          </b>
+          <b>{t("ov.importantAlerts", { n: badAlerts.length })}</b>
           <span className="min-w-0 flex-1">{badAlerts[0].text}</span>
           <Button size="sm" variant="danger" onClick={() => onNavigate("alerts")}>
-            عرض
+            {t("app.view")}
           </Button>
         </div>
       )}
@@ -47,44 +48,38 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }
       <KpiRow>
         <Kpi
           hero
-          label="مبيعات المجموعة اليوم"
+          label={t("ov.groupSales")}
           value={money(total)}
           footer={
             <span className={change >= 0 ? "text-emerald-300" : "text-red-300"}>
               <span className="num">
                 {change >= 0 ? "▲" : "▼"} {Math.abs(change).toFixed(1)}%
               </span>{" "}
-              مقارنة بنفس الوقت أمس
+              {t("ov.vsYesterday")}
             </span>
           }
         />
-        <Kpi label="الطلبات · متوسط الفاتورة" value={fmt(orders)} footer={<span className="num">{money(total / orders)}</span>} />
+        <Kpi label={t("ov.ordersTicket")} value={fmt(orders)} footer={<span className="num">{money(total / orders)}</span>} />
         <Kpi
           alert
-          label={`تكلفة الأغذية · ${names.branches.qasr}`}
+          label={t("ov.foodCost", { branch: branchNames.qasr })}
           value={`${FOOD_COST.qasr}%`}
           valueClass="text-red-600"
           footer={
             <>
-              <Badge tone="danger">{money(FOOD_COST_OVER_AMOUNT)} فوق الحد هذا الشهر</Badge>
-              <span>الحد <span className="num">{FOOD_COST_RANGE}</span></span>
+              <Badge tone="danger">{t("ov.overLimit", { amount: money(FOOD_COST_OVER_AMOUNT) })}</Badge>
+              <span>{t("ov.limit", { range: FOOD_COST_RANGE })}</span>
             </>
           }
           onClick={() => onNavigate("reports")}
         />
         <Kpi
-          label="بانتظار اعتمادك"
+          label={t("ov.waiting")}
           value={approvals.length}
           footer={
             <>
-              <Badge tone="danger">
-                <span className="num">{lowStockCount}</span> أصناف منخفضة
-              </Badge>
-              {cashDiffs > 0 && (
-                <Badge tone="warning">
-                  <span className="num">{cashDiffs}</span> فروقات نقدية
-                </Badge>
-              )}
+              <Badge tone="danger">{t("ov.lowItems", { n: lowStockCount })}</Badge>
+              {cashDiffs > 0 && <Badge tone="warning">{t("ov.cashDiffs", { n: cashDiffs })}</Badge>}
             </>
           }
           onClick={() => onNavigate("approvals")}
@@ -98,11 +93,11 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }
             <Card key={b} className="flex flex-col gap-3 p-5">
               <div className="flex items-center gap-2">
                 <BranchDot branch={b} />
-                <b className="text-slate-900">{names.branches[b]}</b>
+                <b className="text-slate-900">{branchNames[b]}</b>
               </div>
               <div className="num text-2xl font-bold text-slate-900">{money(today.sales[b])}</div>
               <Bar ratio={today.sales[b] / BASE_DAILY[b]} color={SERIES_COLOR[b]} />
-              <Row label="الطلبات">
+              <Row label={t("ov.orders")}>
                 <span className="num">
                   {today.orders[b]} ·{" "}
                   <span className={d >= 0 ? "text-emerald-600" : "text-red-600"}>
@@ -111,13 +106,13 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }
                   </span>
                 </span>
               </Row>
-              <Row label="تكلفة الأغذية">
+              <Row label={t("ov.foodCostRow")}>
                 <span className="flex items-center gap-2">
                   <span className={cn("num", FOOD_COST[b] > FOOD_COST_LIMIT && "font-semibold text-red-600")}>{FOOD_COST[b]}%</span>
-                  {FOOD_COST[b] > FOOD_COST_LIMIT && <Badge tone="danger">فوق {FOOD_COST_LIMIT}%</Badge>}
+                  {FOOD_COST[b] > FOOD_COST_LIMIT && <Badge tone="danger">{t("ov.over", { limit: FOOD_COST_LIMIT })}</Badge>}
                 </span>
               </Row>
-              <Row label="تقفيل أمس">
+              <Row label={t("ov.yClosing")}>
                 <ClosingStateBadge state={closings[b].state} />
               </Row>
             </Card>
@@ -127,18 +122,18 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
-          <CardHeader icon={<LineChart className="size-5" />} title="المبيعات آخر 14 يوم" subtitle="لكل مطعم (د.إ)، واليوم يتحدث مباشرة. مرّر على العمود للتفاصيل" />
-          <SalesChart data={chartData} names={names.branches} />
+          <CardHeader icon={<LineChart className="size-5" />} title={t("ov.sales14")} subtitle={t("ov.sales14Hint")} />
+          <SalesChart data={chartData} names={branchNames} />
         </Card>
         <Card>
           <CardHeader
             icon={<Radio className="size-5" />}
-            title="الطلبات المباشرة"
-            subtitle="من الكاشير كل بضع ثوانٍ"
+            title={t("ov.liveOrders")}
+            subtitle={t("ov.fromPos")}
             action={
               <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                 <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                مباشر
+                {t("app.live")}
               </span>
             }
           />
@@ -149,8 +144,8 @@ export function OverviewTab({ onNavigate }: { onNavigate: (tab: TabId) => void }
                   <BranchDot branch={o.branch} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <b className="num">#{o.no}</b> · {names.branches[o.branch]}
-                  <div className="text-xs text-slate-500">{o.channel}</div>
+                  <b className="num">#{o.no}</b> · {branchNames[o.branch]}
+                  <div className="text-xs text-slate-500">{tr(o.channel)}</div>
                 </div>
                 <div className="text-end">
                   <div className="num font-medium text-slate-900">{money(o.amount)}</div>

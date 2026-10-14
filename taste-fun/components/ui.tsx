@@ -154,11 +154,11 @@ export function NumberInput({
       <input
         type="number"
         inputMode="decimal"
-        className={cn(inputBase, "num h-11 text-right", suffix && "pl-14", className)}
+        className={cn(inputBase, "h-11 text-start tabular-nums", suffix && "pe-14", className)}
         {...rest}
       />
       {suffix && (
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-500">
+        <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-xs text-slate-500">
           {suffix}
         </span>
       )}

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { ClipboardList, ListChecks, Pencil, Zap } from "lucide-react";
-import { useOwner, money } from "@/lib/owner-store";
+import { useOwner } from "@/lib/owner-store";
+import { useI18n, type Key } from "@/lib/i18n";
 import { BRANCH_IDS, CLOSING_SPLIT, type BranchId } from "@/lib/mock-data";
 import { cn, fmt } from "@/lib/format";
 import { Button, Card, CardHeader, Field, NumberInput, Segmented } from "../ui";
@@ -11,17 +12,18 @@ import { BranchDot, Table, Td, Th } from "./common";
 
 type Source = "pos" | "manual";
 const CHANNEL_FIELDS = [
-  { key: "card", label: "بطاقات" },
-  { key: "cash", label: "مبيعات نقدية" },
-  { key: "talabat", label: "طلبات" },
-  { key: "keeta", label: "كيتا" },
-  { key: "external", label: "أوردرات خارجية" },
-] as const;
+  { key: "card", label: "cl.card" },
+  { key: "cash", label: "cl.cash" },
+  { key: "talabat", label: "cl.talabat" },
+  { key: "keeta", label: "cl.keeta" },
+  { key: "external", label: "cl.external" },
+] as const satisfies readonly { key: string; label: Key }[];
 type Channel = (typeof CHANNEL_FIELDS)[number]["key"];
 const EMPTY_MANUAL: Record<Channel, string> = { card: "", cash: "", talabat: "", keeta: "", external: "" };
 
 export function ClosingTab() {
   const { names, today, history, closings, updateClosing, notify } = useOwner();
+  const { t, tr, money, currency } = useI18n();
   const [branch, setBranch] = useState<BranchId>("qasr");
   const [source, setSource] = useState<Source>("pos");
   const [manual, setManual] = useState(EMPTY_MANUAL);
@@ -54,17 +56,13 @@ export function ClosingTab() {
       <Card>
         <CardHeader
           icon={<ClipboardList className="size-5" />}
-          title="التقفيل اليومي"
-          subtitle={
-            source === "pos"
-              ? "أرقام الكاشير تظهر تلقائيًا. المدير يعدّ النقدية ويرسل، وأنت تعتمد."
-              : "لا يوجد كاشير بعد؟ المدير يدخل إجمالي اليوم في دقيقة. وعند تركيب كاشير تمتلئ هذه الأرقام تلقائيًا."
-          }
-          action={<Segmented value={branch} onChange={switchBranch} options={BRANCH_IDS.map((b) => ({ value: b, label: names.branches[b] }))} />}
+          title={t("nav.closing")}
+          subtitle={t(source === "pos" ? "cl.hintPos" : "cl.hintManual")}
+          action={<Segmented value={branch} onChange={switchBranch} options={BRANCH_IDS.map((b) => ({ value: b, label: tr(names.branches[b]) }))} />}
         />
         <div className="space-y-5 p-5">
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="text-slate-500">مصدر المبيعات</span>
+            <span className="text-slate-500">{t("cl.source")}</span>
             <Segmented
               value={source}
               onChange={(s) => {
@@ -72,8 +70,8 @@ export function ClosingTab() {
                 setCounted("");
               }}
               options={[
-                { value: "pos", label: "من الكاشير (تلقائي)", icon: <Zap className="size-4" /> },
-                { value: "manual", label: "إدخال يدوي", icon: <Pencil className="size-4" /> },
+                { value: "pos", label: t("cl.srcPos"), icon: <Zap className="size-4" /> },
+                { value: "manual", label: t("cl.srcManual"), icon: <Pencil className="size-4" /> },
               ]}
             />
           </div>
@@ -81,12 +79,12 @@ export function ClosingTab() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CHANNEL_FIELDS.map((f) =>
               source === "pos" ? (
-                <AutoField key={f.key} label={f.label} value={values[f.key]} />
+                <AutoField key={f.key} label={t(f.label)} value={values[f.key]} />
               ) : (
-                <Field key={f.key} label={f.label} hint="إدخال المدير">
+                <Field key={f.key} label={t(f.label)} hint={t("cl.enteredBy")}>
                   <NumberInput
                     id={`manual-${f.key}`}
-                    suffix="د.إ"
+                    suffix={currency}
                     placeholder="0"
                     value={manual[f.key]}
                     onChange={(e) => setManual((m) => ({ ...m, [f.key]: e.target.value }))}
@@ -94,21 +92,21 @@ export function ClosingTab() {
                 </Field>
               ),
             )}
-            <AutoField label={source === "pos" ? "إجمالي المبيعات (الكاشير)" : "إجمالي المبيعات"} value={total} strong />
-            <Field label="مصروفات نقدية مدفوعة اليوم">
-              <NumberInput id="closing-petty" suffix="د.إ" value={petty} onChange={(e) => setPetty(e.target.value)} />
+            <AutoField label={t(source === "pos" ? "cl.posTotal" : "cl.total")} value={total} strong />
+            <Field label={t("cl.petty")}>
+              <NumberInput id="closing-petty" suffix={currency} value={petty} onChange={(e) => setPetty(e.target.value)} />
             </Field>
-            <Field label="النقدية الموجودة في الدرج">
-              <NumberInput id="closing-counted" suffix="د.إ" placeholder={fmt(expected)} value={counted} onChange={(e) => setCounted(e.target.value)} />
+            <Field label={t("cl.counted")}>
+              <NumberInput id="closing-counted" suffix={currency} placeholder={fmt(expected)} value={counted} onChange={(e) => setCounted(e.target.value)} />
             </Field>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3 text-sm">
             <span>
-              النقدية المتوقعة في الدرج: <b className="num text-lg text-slate-900">{money(expected)}</b>
+              {t("cl.expected")}: <b className="num text-lg text-slate-900">{money(expected)}</b>
             </span>
             <span className="flex items-center gap-2">
-              الفرق: {variance === null ? <span className="text-slate-400">—</span> : <VarianceBadge variance={variance} />}
+              {t("cl.variance")}: {variance === null ? <span className="text-slate-400">—</span> : <VarianceBadge variance={variance} />}
             </span>
           </div>
 
@@ -121,28 +119,28 @@ export function ClosingTab() {
                   variant="danger"
                   onClick={() => {
                     updateClosing(branch, { state: "notSubmitted" });
-                    notify("تم رفض التقفيل وإعادته للمدير");
+                    notify(t("toast.closingRejected"));
                   }}
                 >
-                  رفض
+                  {t("app.reject")}
                 </Button>
                 <Button
                   onClick={() => {
                     updateClosing(branch, { state: "approved" });
-                    notify("تم اعتماد التقفيل");
+                    notify(t("toast.closingApproved"));
                   }}
                 >
-                  اعتماد
+                  {t("app.approve")}
                 </Button>
               </>
             ) : (
               <Button
                 onClick={() => {
                   updateClosing(branch, { state: "submitted", variance: variance === null ? 0 : Math.round(variance) });
-                  notify("تم إرسال التقفيل، وهو الآن بانتظار الاعتماد");
+                  notify(t("toast.closingSubmitted"));
                 }}
               >
-                إرسال التقفيل
+                {t("cl.submit")}
               </Button>
             )}
           </div>
@@ -150,15 +148,15 @@ export function ClosingTab() {
       </Card>
 
       <Card>
-        <CardHeader icon={<ListChecks className="size-5" />} title="تقفيل أمس" />
+        <CardHeader icon={<ListChecks className="size-5" />} title={t("cl.yesterday")} />
         <Table
           minWidth={520}
           head={
             <>
-              <Th>المطعم</Th>
-              <Th end>المبيعات</Th>
-              <Th end>الفرق</Th>
-              <Th>الحالة</Th>
+              <Th>{t("cl.restaurant")}</Th>
+              <Th end>{t("cl.sales")}</Th>
+              <Th end>{t("cl.variance")}</Th>
+              <Th>{t("cl.status")}</Th>
             </>
           }
         >
@@ -169,7 +167,7 @@ export function ClosingTab() {
                 <Td>
                   <span className="flex items-center gap-2 font-medium text-slate-900">
                     <BranchDot branch={b} />
-                    {names.branches[b]}
+                    {tr(names.branches[b])}
                   </span>
                 </Td>
                 <Td end className="num">{money(history[history.length - 1][b])}</Td>
@@ -187,6 +185,7 @@ export function ClosingTab() {
 }
 
 function AutoField({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
+  const { t, money } = useI18n();
   return (
     <div>
       <span className="mb-1.5 block text-sm font-medium text-slate-700">{label}</span>
@@ -195,7 +194,7 @@ function AutoField({ label, value, strong }: { label: string; value: number; str
       </div>
       <span className="mt-1 flex items-center gap-1 text-xs text-brand-600">
         <span className="size-1.5 rounded-full bg-brand-500" />
-        تلقائي من الكاشير
+        {t("cl.auto")}
       </span>
     </div>
   );

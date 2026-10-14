@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { SERIES_COLOR, type BranchId } from "@/lib/mock-data";
 import { cn } from "@/lib/format";
 import { Badge } from "../ui";
+import { useI18n } from "@/lib/i18n";
 
 /** Headline figure tile. `hero` is the dark lead tile; `alert` outlines a figure that needs attention. */
 export function Kpi({
@@ -97,15 +98,17 @@ export function Notice({ tone, children }: { tone: "danger" | "success" | "warni
 }
 
 export function Phase2Banner() {
+  const { t } = useI18n();
   return (
     <Notice tone="warning">
-      <Badge tone="warning">المرحلة 2</Badge>
-      مخطط للمرحلة الثانية، ويظهر هنا لتعرف إلى أين يمكن أن يكبر النظام.
+      <Badge tone="warning">{t("app.phase2")}</Badge>
+      {t("p2.banner")}
     </Notice>
   );
 }
 
 export function Modal({ title, onClose, children, width = 520 }: { title: string; onClose: () => void; children: React.ReactNode; width?: number }) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -117,7 +120,7 @@ export function Modal({ title, onClose, children, width = 520 }: { title: string
       <div className="flex max-h-[90vh] w-full flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" style={{ maxWidth: width }} role="dialog" aria-modal="true" aria-label={title}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100" aria-label="إغلاق">
+          <button onClick={onClose} className="flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100" aria-label={t("app.close")}>
             <X className="size-4" />
           </button>
         </div>

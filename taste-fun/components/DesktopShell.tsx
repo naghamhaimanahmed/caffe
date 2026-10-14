@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
 import { useAuth, ROLES, type Role } from "@/lib/auth";
 import { Brand } from "./Brand";
+import { LanguageToggle } from "./LanguageToggle";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/format";
 
 export interface NavItem {
@@ -40,6 +42,7 @@ export function DesktopShell({
   children: React.ReactNode;
 }) {
   const { logout } = useAuth();
+  const { t, tr } = useI18n();
   const router = useRouter();
   const info = ROLES[role];
 
@@ -56,11 +59,11 @@ export function DesktopShell({
           <Brand inverted />
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
-          <p className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-500">القائمة</p>
+          <p className="px-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-500">{t("app.menu")}</p>
           {nav.map((item, i) => (
             <div key={item.id}>
               {item.phase2 && !nav[i - 1]?.phase2 && (
-                <p className="px-3 pb-2 pt-4 text-[11px] font-semibold tracking-wide text-slate-500">المرحلة 2</p>
+                <p className="px-3 pb-2 pt-4 text-[11px] font-semibold tracking-wide text-slate-500">{t("app.phase2")}</p>
               )}
               <button
                 onClick={() => onNavigate(item.id)}
@@ -82,12 +85,12 @@ export function DesktopShell({
         <div className="border-t border-slate-800 p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <div className="flex size-9 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">
-              {info.user.charAt(0)}
+              {tr(info.user).charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-white">{info.user}</div>
+              <div className="truncate text-sm font-medium text-white">{tr(info.user)}</div>
               <div className="truncate text-xs text-slate-400">
-                {info.label} · {info.scope}
+                {t(info.label)} · {t(info.scope)}
               </div>
             </div>
           </div>
@@ -96,7 +99,7 @@ export function DesktopShell({
             className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
           >
             <LogOut className="size-[18px]" />
-            تسجيل الخروج
+            {t("app.logout")}
           </button>
         </div>
       </aside>
@@ -112,10 +115,11 @@ export function DesktopShell({
             {subtitle && <p className="hidden truncate text-xs text-slate-500 sm:block">{subtitle}</p>}
           </div>
           {actions}
+          <LanguageToggle />
           <button
             onClick={onAlerts}
             className="relative flex size-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-            aria-label="التنبيهات"
+            aria-label={t("app.alerts")}
           >
             <Bell className="size-5" />
             {alertsCount ? (
@@ -129,7 +133,7 @@ export function DesktopShell({
             className="flex h-10 items-center gap-2 rounded-lg px-3 text-sm text-slate-600 hover:bg-slate-100 lg:hidden"
           >
             <LogOut className="size-4" />
-            خروج
+            {t("app.logout")}
           </button>
         </div>
         {/* Mobile nav strip */}

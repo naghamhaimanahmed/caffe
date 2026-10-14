@@ -2,18 +2,20 @@
 
 import { Bell, CheckCircle2 } from "lucide-react";
 import { useOwner, type TabId } from "@/lib/owner-store";
+import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/format";
 import { Button, Card, CardHeader, EmptyState } from "../ui";
 import { BranchDot } from "./common";
 
 export function AlertsTab({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
   const { names, alerts } = useOwner();
+  const { t, tr } = useI18n();
 
   return (
     <Card>
-      <CardHeader icon={<Bell className="size-5" />} title="التنبيهات" subtitle="كل تنبيه يفتح الصفحة اللي تحتاج تتصرف فيها." />
+      <CardHeader icon={<Bell className="size-5" />} title={t("nav.alerts")} subtitle={t("al.hint")} />
       {alerts.length === 0 ? (
-        <EmptyState icon={<CheckCircle2 className="size-6" />} title="لا توجد تنبيهات" />
+        <EmptyState icon={<CheckCircle2 className="size-6" />} title={t("al.none")} />
       ) : (
         <ul className="divide-y divide-slate-100">
           {alerts.map((a, i) => (
@@ -23,7 +25,7 @@ export function AlertsTab({ onNavigate }: { onNavigate: (tab: TabId) => void }) 
                   "flex size-7 shrink-0 items-center justify-center rounded-full text-sm font-bold",
                   a.severity === "bad" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700",
                 )}
-                aria-label={a.severity === "bad" ? "مهم" : "تنبيه"}
+                aria-label={t(a.severity === "bad" ? "al.important" : "al.notice")}
               >
                 {a.severity === "bad" ? "!" : "•"}
               </span>
@@ -33,17 +35,17 @@ export function AlertsTab({ onNavigate }: { onNavigate: (tab: TabId) => void }) 
                   {a.branch ? (
                     <>
                       <BranchDot branch={a.branch} />
-                      {names.branches[a.branch]}
+                      {tr(names.branches[a.branch])}
                     </>
                   ) : (
-                    names.group
+                    tr(names.group)
                   )}
                   <span>·</span>
                   <span className="num">{a.time}</span>
                 </p>
               </div>
               <Button size="sm" variant="secondary" onClick={() => onNavigate(a.goTo)}>
-                عرض
+                {t("app.view")}
               </Button>
             </li>
           ))}

@@ -2,7 +2,8 @@
 
 import { ArrowLeftRight, Package, ShoppingCart } from "lucide-react";
 import { useOwner, isLow, type TabId } from "@/lib/owner-store";
-import { BRANCH_IDS, LOW_STOCK_RATIO } from "@/lib/mock-data";
+import { useI18n } from "@/lib/i18n";
+import { BRANCH_IDS, LOW_STOCK_RATIO, UNITS } from "@/lib/mock-data";
 import { cn, fmt } from "@/lib/format";
 import { Button, Card, CardHeader } from "../ui";
 import { Bar, BranchDot, Table, Td, Th } from "./common";
@@ -13,13 +14,14 @@ function levelColor(ratio: number) {
 
 export function InventoryTab({ onNavigate }: { onNavigate: (tab: TabId) => void }) {
   const { names, stock, transferStock, createLowStockOrders } = useOwner();
+  const { t, tr } = useI18n();
 
   return (
     <Card>
       <CardHeader
         icon={<Package className="size-5" />}
-        title="المخزون في كل المواقع"
-        subtitle="كل خانة تعرض الرصيد مقابل الحد الأدنى. اضغط على الخانة الحمراء للتحويل من المستودع."
+        title={t("inv.title")}
+        subtitle={t("inv.hint")}
         action={
           <Button
             size="sm"
@@ -29,7 +31,7 @@ export function InventoryTab({ onNavigate }: { onNavigate: (tab: TabId) => void 
             }}
           >
             <ShoppingCart className="size-4" />
-            إنشاء طلبات للأصناف المنخفضة
+            {t("inv.createPo")}
           </Button>
         }
       />
@@ -37,14 +39,14 @@ export function InventoryTab({ onNavigate }: { onNavigate: (tab: TabId) => void 
         minWidth={760}
         head={
           <>
-            <Th>الصنف</Th>
-            <Th>الوحدة</Th>
-            <Th>المستودع الرئيسي</Th>
+            <Th>{t("inv.item")}</Th>
+            <Th>{t("inv.unit")}</Th>
+            <Th>{t("inv.warehouse")}</Th>
             {BRANCH_IDS.map((b) => (
               <Th key={b}>
                 <span className="flex items-center gap-1.5">
                   <BranchDot branch={b} />
-                  {names.branches[b]}
+                  {tr(names.branches[b])}
                 </span>
               </Th>
             ))}
@@ -52,9 +54,9 @@ export function InventoryTab({ onNavigate }: { onNavigate: (tab: TabId) => void 
         }
       >
         {stock.map((item, i) => (
-          <tr key={item.name}>
-            <Td className="font-semibold text-slate-900">{item.name}</Td>
-            <Td className="text-slate-500">{item.unit}</Td>
+          <tr key={item.name.en}>
+            <Td className="font-semibold text-slate-900">{tr(item.name)}</Td>
+            <Td className="text-slate-500">{tr(UNITS[item.unit])}</Td>
             {item.stock.map((qty, loc) => {
               const ratio = qty / item.par[loc];
               const low = loc > 0 && isLow(item, loc);
@@ -71,7 +73,7 @@ export function InventoryTab({ onNavigate }: { onNavigate: (tab: TabId) => void 
                     <button
                       onClick={() => transferStock(i, loc)}
                       className="-m-1.5 block w-full rounded-lg p-1.5 text-start hover:bg-red-50"
-                      title={`تحويل من المستودع (الحد الأدنى ${item.par[loc]})`}
+                      title={t("inv.transferTip", { par: item.par[loc] })}
                     >
                       {cell}
                     </button>
