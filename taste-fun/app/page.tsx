@@ -3,12 +3,8 @@
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Calculator,
-  ChefHat,
   Crown,
   ShieldCheck,
-  ShoppingCart,
-  Store,
 } from "lucide-react";
 import { ROLES, useAuth, type Role } from "@/lib/auth";
 import { Brand } from "@/components/Brand";
@@ -16,10 +12,6 @@ import { cn } from "@/lib/format";
 
 const ROLE_ORDER: { role: Role; icon: React.ReactNode; accent: string; device: string }[] = [
   { role: "owner", icon: <Crown />, accent: "bg-amber-50 text-amber-700", device: "سطح المكتب" },
-  { role: "accountant", icon: <Calculator />, accent: "bg-brand-50 text-brand-700", device: "سطح المكتب" },
-  { role: "manager", icon: <Store />, accent: "bg-emerald-50 text-emerald-700", device: "الجوال" },
-  { role: "chef", icon: <ChefHat />, accent: "bg-orange-50 text-orange-700", device: "الجوال / التابلت" },
-  { role: "purchaser", icon: <ShoppingCart />, accent: "bg-violet-50 text-violet-700", device: "التابلت / الجوال" },
 ];
 
 export default function LoginPage() {
@@ -52,13 +44,13 @@ export default function LoginPage() {
             والتكاليف في كل فروعك
           </h1>
           <p className="mt-4 max-w-md text-sm leading-7 text-slate-300">
-            إغلاق يومي دقيق، عهد موثّقة، رقابة على الهدر وأسعار الموردين — في منصة واحدة لفرعي
+            مبيعات الفروع وحالة الإغلاق اليومي والموافقات في لوحة واحدة لفرعي
             القصر الملكي ولؤلؤة بحري.
           </p>
           <dl className="mt-8 hidden grid-cols-3 gap-4 lg:grid">
             {[
               ["2", "فروع متصلة"],
-              ["5", "أدوار بصلاحيات منفصلة"],
+              ["14", "يومًا من سجل المبيعات"],
               ["24/7", "رقابة لحظية"],
             ].map(([v, l]) => (
               <div key={l} className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -80,7 +72,7 @@ export default function LoginPage() {
               بيئة عرض — بدون كلمة مرور
             </div>
             <h2 className="text-2xl font-bold text-slate-900">تسجيل الدخول</h2>
-            <p className="mt-1 text-sm text-slate-500">اختر الدور للدخول إلى مساحة العمل الخاصة به.</p>
+            <p className="mt-1 text-sm text-slate-500">ادخل إلى لوحة المالك لمتابعة الفرعين.</p>
           </div>
 
           <div className="space-y-3">

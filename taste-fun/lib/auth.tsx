@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-export type Role = "owner" | "accountant" | "manager" | "chef" | "purchaser";
+export type Role = "owner";
 
 export interface RoleInfo {
   label: string;
@@ -21,38 +21,6 @@ export const ROLES: Record<Role, RoleInfo> = {
     user: "خالد المنصوري",
     scope: "جميع الفروع",
     description: "لوحة المؤشرات والمبيعات وحالة إغلاق الفروع والموافقات",
-  },
-  accountant: {
-    label: "المحاسب",
-    english: "Accountant",
-    route: "/accountant",
-    user: "سارة الحمادي",
-    scope: "الإدارة المالية",
-    description: "مراجعة العهد والإغلاقات اليومية وتنبيهات أسعار الموردين",
-  },
-  manager: {
-    label: "مدير مطعم",
-    english: "Branch Manager",
-    route: "/manager",
-    user: "أحمد يوسف",
-    scope: "فرع القصر الملكي",
-    description: "الإغلاق اليومي للصندوق وتسجيل مصروفات العهدة",
-  },
-  chef: {
-    label: "الشيف",
-    english: "Chef",
-    route: "/chef",
-    user: "الشيف مروان",
-    scope: "مطبخ القصر الملكي",
-    description: "تسجيل الهدر والاطلاع على الوصفات القياسية",
-  },
-  purchaser: {
-    label: "مسؤول المشتريات",
-    english: "Purchaser",
-    route: "/purchaser",
-    user: "عمر الشامسي",
-    scope: "المشتريات المركزية",
-    description: "أوامر الشراء واستلام البضائع وتحديث آخر الأسعار",
   },
 };
 

@@ -2,11 +2,6 @@ import { AlertTriangle, CheckCircle2, Clock, TrendingDown, TrendingUp, CircleDas
 import { Badge } from "./ui";
 import type { ClosingStatus } from "@/lib/mock-data";
 
-export function varianceStatus(variance: number): Exclude<ClosingStatus, "pending" | "not_started"> {
-  if (Math.abs(variance) < 0.005) return "matched";
-  return variance < 0 ? "short" : "over";
-}
-
 export function ClosingBadge({ status }: { status: ClosingStatus }) {
   switch (status) {
     case "matched":
