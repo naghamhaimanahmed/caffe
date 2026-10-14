@@ -2,20 +2,15 @@
 
 import { useState } from "react";
 import { BarChart3, Table2 } from "lucide-react";
-import { BRANCHES, type DailySales } from "@/lib/mock-data";
-import { CURRENCY, cn, fmt } from "@/lib/format";
+import { BRANCH_IDS, SERIES_COLOR, type DailySales, type PerBranch } from "@/lib/mock-data";
+import { cn, fmt } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import { Segmented } from "./ui";
 
-const SERIES = [
-  { key: "qasr" as const, label: BRANCHES.qasr, color: "var(--color-series-1)" },
-  { key: "lulu" as const, label: BRANCHES.lulu, color: "var(--color-series-2)" },
-];
 
-const dayFmt = new Intl.DateTimeFormat("ar-AE-u-nu-latn", { day: "numeric", month: "short" });
-const weekdayFmt = new Intl.DateTimeFormat("ar-AE", { weekday: "long" });
 
 function niceMax(v: number) {
-  const step = 20000;
+  const step = v > 20000 ? 20000 : 2000;
   return Math.ceil(v / step) * step;
 }
 
@@ -23,7 +18,11 @@ function niceMax(v: number) {
  * Stacked daily sales per branch. Time runs in reading direction (RTL):
  * oldest day on the right, today on the left.
  */
-export function SalesChart({ data }: { data: DailySales[] }) {
+export function SalesChart({ data, names }: { data: DailySales[]; names: PerBranch<string> }) {
+  const { t, money, locale } = useI18n();
+  const dayFmt = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
+  const weekdayFmt = new Intl.DateTimeFormat(locale, { weekday: "long" });
+  const SERIES = BRANCH_IDS.map((key) => ({ key, label: names[key], color: SERIES_COLOR[key] }));
   const [view, setView] = useState<"chart" | "table">("chart");
   const [hover, setHover] = useState<number | null>(null);
 
@@ -38,18 +37,18 @@ export function SalesChart({ data }: { data: DailySales[] }) {
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
         <div className="flex items-baseline gap-3">
           <div>
-            <div className="text-xs text-slate-500">إجمالي 14 يوم</div>
+            <div className="text-xs text-slate-500">{t("chart.total14")}</div>
             <div className="num text-xl font-semibold text-slate-900">
-              {fmt(sum)} <span className="text-sm font-normal text-slate-500">{CURRENCY}</span>
+              {money(sum)}
             </div>
           </div>
           <div className="border-s border-slate-200 ps-3">
-            <div className="text-xs text-slate-500">المتوسط اليومي</div>
-            <div className="num text-sm font-medium text-slate-700">{fmt(avg)} {CURRENCY}</div>
+            <div className="text-xs text-slate-500">{t("chart.dailyAvg")}</div>
+            <div className="num text-sm font-medium text-slate-700">{money(avg)}</div>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <ul className="flex items-center gap-4 text-xs text-slate-600" aria-label="مفتاح الرسم">
+          <ul className="flex items-center gap-4 text-xs text-slate-600" aria-label={t("chart.legend")}>
             {SERIES.map((s) => (
               <li key={s.key} className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-sm" style={{ background: s.color }} />
@@ -61,8 +60,8 @@ export function SalesChart({ data }: { data: DailySales[] }) {
             value={view}
             onChange={setView}
             options={[
-              { value: "chart", label: "رسم", icon: <BarChart3 className="size-4" /> },
-              { value: "table", label: "جدول", icon: <Table2 className="size-4" /> },
+              { value: "chart", label: t("chart.chart"), icon: <BarChart3 className="size-4" /> },
+              { value: "table", label: t("chart.table"), icon: <Table2 className="size-4" /> },
             ]}
           />
         </div>
@@ -123,9 +122,9 @@ export function SalesChart({ data }: { data: DailySales[] }) {
                             </div>
                           ))}
                           <div className="mt-1.5 flex justify-between border-t border-slate-100 pt-1.5">
-                            <span className="text-slate-600">الإجمالي</span>
+                            <span className="text-slate-600">{t("chart.total")}</span>
                             <span className="num font-semibold text-slate-900">
-                              {fmt(total)} {CURRENCY}
+                              {money(total)}
                             </span>
                           </div>
                         </div>
@@ -139,7 +138,7 @@ export function SalesChart({ data }: { data: DailySales[] }) {
             <div className="relative h-64 w-10 shrink-0 text-[11px] text-slate-400">
               {ticks.map((t) => (
                 <span key={t} className="num absolute start-0 translate-y-1/2" style={{ bottom: `${(t / max) * 100}%` }}>
-                  {t === 0 ? "0" : `${t / 1000}k`}
+                  {t === 0 ? "0" : `${+(t / 1000).toFixed(1)}k`}
                 </span>
               ))}
             </div>
@@ -155,7 +154,7 @@ export function SalesChart({ data }: { data: DailySales[] }) {
                   i % 2 === 1 && i !== data.length - 1 && "max-sm:invisible",
                 )}
               >
-                {i === data.length - 1 ? "اليوم" : dayFmt.format(new Date(d.date))}
+                {i === data.length - 1 ? t("app.today") : dayFmt.format(new Date(d.date))}
               </div>
             ))}
           </div>
@@ -165,10 +164,10 @@ export function SalesChart({ data }: { data: DailySales[] }) {
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-white text-xs text-slate-500">
               <tr className="border-b border-slate-200">
-                <th className="py-2 text-start font-medium">التاريخ</th>
-                <th className="py-2 text-end font-medium">{BRANCHES.qasr}</th>
-                <th className="py-2 text-end font-medium">{BRANCHES.lulu}</th>
-                <th className="py-2 text-end font-medium">الإجمالي</th>
+                <th className="py-2 text-start font-medium">{t("chart.date")}</th>
+                <th className="py-2 text-end font-medium">{names.qasr}</th>
+                <th className="py-2 text-end font-medium">{names.lulu}</th>
+                <th className="py-2 text-end font-medium">{t("chart.total")}</th>
               </tr>
             </thead>
             <tbody>

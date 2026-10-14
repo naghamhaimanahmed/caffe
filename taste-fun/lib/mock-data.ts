@@ -1,12 +1,45 @@
 // All data below is mocked for the UI demo. No backend is involved.
+// Text shown to users is bilingual: `L` holds the Arabic and English versions.
 
-export const BRANCHES = {
-  qasr: "القصر الملكي",
-  lulu: "لؤلؤة بحري",
-} as const;
-export type BranchId = keyof typeof BRANCHES;
+export interface L {
+  ar: string;
+  en: string;
+}
 
-/* ---------------------------- Owner ---------------------------- */
+/** The same text in both languages, for proper names and user-typed values. */
+export const both = (s: string): L => ({ ar: s, en: s });
+
+export const UNITS = {
+  kg: { ar: "كجم", en: "kg" },
+  pcs: { ar: "قطعة", en: "pcs" },
+} satisfies Record<string, L>;
+export type Unit = keyof typeof UNITS;
+
+export const BRANCH_IDS = ["qasr", "lulu"] as const;
+export type BranchId = (typeof BRANCH_IDS)[number];
+export type PerBranch<T> = Record<BranchId, T>;
+
+export const SERIES_COLOR: PerBranch<string> = {
+  qasr: "var(--color-series-1)",
+  lulu: "var(--color-series-2)",
+};
+
+export interface Names {
+  group: L;
+  food: L;
+  branches: PerBranch<L>;
+}
+
+export const DEFAULT_NAMES: Names = {
+  group: { ar: "تيست آند فن", en: "Taste & Fun" },
+  food: { ar: "مطبخ ريحانة · مطبخ الأسمنت", en: "Rayhana Kitchen · Al Asmant Kitchen" },
+  branches: {
+    qasr: { ar: "القصر الملكي", en: "Al Qasr Al Malaki" },
+    lulu: { ar: "لؤلؤة بحري", en: "Lulu'at Bahri" },
+  },
+};
+
+/* ------------------------------ Sales ------------------------------ */
 
 export interface DailySales {
   date: string; // ISO yyyy-mm-dd
@@ -14,427 +47,464 @@ export interface DailySales {
   lulu: number;
 }
 
-export const SALES_14_DAYS: DailySales[] = [
-  { date: "2026-10-01", qasr: 24150, lulu: 18420 },
-  { date: "2026-10-02", qasr: 27890, lulu: 21360 },
-  { date: "2026-10-03", qasr: 31420, lulu: 25880 },
-  { date: "2026-10-04", qasr: 29760, lulu: 24110 },
-  { date: "2026-10-05", qasr: 22340, lulu: 17650 },
-  { date: "2026-10-06", qasr: 23180, lulu: 18930 },
-  { date: "2026-10-07", qasr: 24910, lulu: 19840 },
-  { date: "2026-10-08", qasr: 25560, lulu: 20410 },
-  { date: "2026-10-09", qasr: 28930, lulu: 22770 },
-  { date: "2026-10-10", qasr: 33150, lulu: 27240 },
-  { date: "2026-10-11", qasr: 30880, lulu: 25190 },
-  { date: "2026-10-12", qasr: 23640, lulu: 18870 },
-  { date: "2026-10-13", qasr: 24720, lulu: 19960 },
-  { date: "2026-10-14", qasr: 26930, lulu: 21820 },
+/** Typical daily sales per branch, used to size progress bars and generate history. */
+export const BASE_DAILY: PerBranch<number> = { qasr: 3420, lulu: 2750 };
+
+/** The 13 days before `today`, with a weekly pattern (weekends busier). Deterministic. */
+export function buildHistory(today: Date): DailySales[] {
+  let seed = 11;
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+  const days = 13;
+  const dates = Array.from({ length: days }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (days - i));
+    return d;
+  });
+  const series = BRANCH_IDS.map((b) =>
+    dates.map((d) => {
+      const weekday = [1.0, 0.92, 0.95, 1.02, 1.18, 1.32, 1.12][d.getDay()];
+      return Math.round(BASE_DAILY[b] * weekday * (0.9 + rnd() * 0.2));
+    }),
+  );
+  return dates.map((d, i) => ({ date: isoDate(d), qasr: series[0][i], lulu: series[1][i] }));
+}
+
+export function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export interface TodayFigures {
+  sales: PerBranch<number>;
+  orders: PerBranch<number>;
+  yesterdaySameTime: PerBranch<number>;
+}
+
+export const TODAY_START: TodayFigures = {
+  sales: { qasr: 3910, lulu: 2640 },
+  orders: { qasr: 61, lulu: 44 },
+  yesterdaySameTime: { qasr: 3696, lulu: 2510 },
+};
+
+export const FOOD_COST: PerBranch<number> = { qasr: 45.5, lulu: 38.2 };
+export const FOOD_COST_LIMIT = 35;
+export const FOOD_COST_RANGE = "28–35%";
+export const FOOD_COST_OVER_AMOUNT = 10811;
+
+export const SALES_CHANNELS: { label: L; share: number }[] = [
+  { label: { ar: "صالة · بطاقة", en: "Dine-in · Card" }, share: 0.54 },
+  { label: { ar: "صالة · نقدي", en: "Dine-in · Cash" }, share: 0.21 },
+  { label: { ar: "أوردرات خارجية", en: "External orders" }, share: 0.21 },
+  { label: { ar: "كيتا", en: "Keeta" }, share: 0.02 },
+  { label: { ar: "طلبات", en: "Talabat" }, share: 0.02 },
 ];
 
-export type ClosingStatus = "matched" | "short" | "over" | "pending" | "not_started";
+export const PAYMENT_METHODS: { label: L; share: number }[] = [
+  { label: { ar: "بطاقة", en: "Card" }, share: 0.54 },
+  { label: { ar: "نقدي", en: "Cash" }, share: 0.21 },
+  { label: { ar: "أوردرات خارجية", en: "External orders" }, share: 0.21 },
+  { label: { ar: "تطبيقات التوصيل", en: "Delivery apps" }, share: 0.04 },
+];
+
+export const LIVE_ORDER_CHANNELS: L[] = [
+  { ar: "صالة · فيزا", en: "Dine-in · Visa" },
+  { ar: "صالة · كاش", en: "Dine-in · Cash" },
+  { ar: "طلبات", en: "Talabat" },
+  { ar: "كيتا", en: "Keeta" },
+  { ar: "أوردر خارجي", en: "External order" },
+];
+
+/* ------------------------------ P&L ------------------------------ */
+
+export type Period = "today" | "week" | "month" | "year";
+
+export const PERIODS: { id: Period; label: L; factor: number; change: number }[] = [
+  { id: "today", label: { ar: "اليوم", en: "Today" }, factor: 1 / 30, change: 4.4 },
+  { id: "week", label: { ar: "هذا الأسبوع", en: "This week" }, factor: 7 / 30, change: 3.2 },
+  { id: "month", label: { ar: "هذا الشهر", en: "This month" }, factor: 1, change: 6.1 },
+  { id: "year", label: { ar: "هذه السنة", en: "This year" }, factor: 12, change: 11.4 },
+];
+
+/** Cost structure per branch: salaries as a share of sales, rent as a fixed monthly amount. */
+export const COST_MODEL: PerBranch<{ salaries: number; rentMonthly: number }> = {
+  qasr: { salaries: 0.15, rentMonthly: 16000 },
+  lulu: { salaries: 0.17, rentMonthly: 12000 },
+};
+export const UTILITIES_RATIO = 0.04;
+export const COMMISSIONS_RATIO = 0.084;
+export const OTHER_RATIO = 0.03;
+
+export const TOP_ITEMS: { name: L; qty: number; price: number; margin: number }[] = [
+  { name: { ar: "مشويات مشكلة", en: "Mixed grill" }, qty: 1180, price: 75, margin: 72 },
+  { name: { ar: "كفتة مشوية", en: "Grilled kofta" }, qty: 1640, price: 34, margin: 58 },
+  { name: { ar: "شيش طاووق", en: "Shish tawook" }, qty: 1320, price: 42, margin: 70 },
+  { name: { ar: "جمبري مشوي", en: "Grilled shrimp" }, qty: 610, price: 70, margin: 75 },
+  { name: { ar: "هامور مشوي", en: "Grilled hammour" }, qty: 540, price: 85, margin: 65 },
+  { name: { ar: "شوربة عدس", en: "Lentil soup" }, qty: 190, price: 18, margin: 61 },
+  { name: { ar: "سلطة سيزر", en: "Caesar salad" }, qty: 150, price: 29, margin: 52 },
+  { name: { ar: "ورق عنب", en: "Stuffed vine leaves" }, qty: 120, price: 26, margin: 48 },
+];
+/** The last N entries of TOP_ITEMS are the slowest sellers. */
+export const SLOW_SELLERS = 3;
+
+/* ---------------------------- Closing ---------------------------- */
+
+export type ClosingState = "submitted" | "approved" | "notSubmitted";
 
 export interface BranchClosing {
-  branch: BranchId;
-  manager: string;
-  sales: number;
-  tickets: number;
-  cardSales: number;
-  expectedCash: number;
-  countedCash: number | null;
-  status: ClosingStatus;
-  submittedAt: string | null;
-  foodCost: number;
-  pettyCashSpent: number;
+  state: ClosingState;
+  variance: number | null;
 }
 
-export const BRANCH_CLOSINGS: BranchClosing[] = [
-  {
-    branch: "qasr",
-    manager: "أحمد يوسف",
-    sales: 26930,
-    tickets: 309,
-    cardSales: 18640,
-    expectedCash: 8290,
-    countedCash: 8240,
-    status: "short",
-    submittedAt: "23:42",
-    foodCost: 30.4,
-    pettyCashSpent: 1260,
-  },
-  {
-    branch: "lulu",
-    manager: "رامي حداد",
-    sales: 21820,
-    tickets: 255,
-    cardSales: 15930,
-    expectedCash: 5890,
-    countedCash: null,
-    status: "pending",
-    submittedAt: null,
-    foodCost: 32.3,
-    pettyCashSpent: 845,
-  },
-];
+export const INITIAL_CLOSINGS: PerBranch<BranchClosing> = {
+  qasr: { state: "submitted", variance: -35 },
+  lulu: { state: "approved", variance: 0 },
+};
+
+/** Share of a day's POS total by channel, used to pre-fill the closing form. Cash is the remainder. */
+export const CLOSING_SPLIT = { card: 0.54, talabat: 0.02, keeta: 0.02, external: 0.21 };
+
+/* ---------------------------- Approvals ---------------------------- */
+
+export type ApprovalType = "purchase" | "expense" | "discount" | "overtime";
+
+export const APPROVAL_TONE: Record<ApprovalType, "info" | "warning" | "neutral" | "danger"> = {
+  purchase: "info",
+  expense: "warning",
+  discount: "danger",
+  overtime: "neutral",
+};
 
 export interface Approval {
-  id: string;
-  title: string;
-  branch: BranchId;
+  id: number;
+  type: ApprovalType;
+  title: L;
   amount: number;
-  requestedBy: string;
-  kind: "po" | "petty" | "variance";
+  branch: BranchId;
+  requestedBy: L;
 }
 
-export const PENDING_APPROVALS: Approval[] = [
-  { id: "AP-311", title: "أمر شراء لحوم — مؤسسة الخليج للحوم", branch: "qasr", amount: 7850, requestedBy: "عمر الشامسي", kind: "po" },
-  { id: "AP-312", title: "تجاوز سقف العهدة — صيانة مكيف", branch: "lulu", amount: 1450, requestedBy: "رامي حداد", kind: "petty" },
-  { id: "AP-313", title: "عجز نقدي في إغلاق 13 أكتوبر", branch: "qasr", amount: 50, requestedBy: "أحمد يوسف", kind: "variance" },
-  { id: "AP-314", title: "أمر شراء خضار وفواكه — مزارع العين", branch: "lulu", amount: 2310, requestedBy: "عمر الشامسي", kind: "po" },
-  { id: "AP-315", title: "أمر شراء مأكولات بحرية — أسماك الحمرية", branch: "lulu", amount: 5620, requestedBy: "عمر الشامسي", kind: "po" },
-  { id: "AP-316", title: "استبدال خلاط صناعي", branch: "qasr", amount: 2900, requestedBy: "الشيف مروان", kind: "petty" },
-  { id: "AP-317", title: "مصروف نظافة إضافي", branch: "qasr", amount: 380, requestedBy: "أحمد يوسف", kind: "petty" },
+const MANAGER: L = { ar: "مدير المطعم", en: "Restaurant manager" };
+
+export const INITIAL_APPROVALS: Approval[] = [
+  { id: 1, type: "purchase", title: { ar: "لحم فرم برازيلي 120 كجم", en: "Brazilian minced beef 120 kg" }, amount: 3288, branch: "qasr", requestedBy: MANAGER },
+  { id: 2, type: "expense", title: { ar: "صيانة خط الغاز الجديد", en: "New gas line maintenance" }, amount: 650, branch: "qasr", requestedBy: MANAGER },
+  { id: 3, type: "discount", title: { ar: "خصم 25% على الطلب #4512", en: "25% discount on order #4512" }, amount: 120, branch: "lulu", requestedBy: { ar: "كاشير 2", en: "Cashier 2" } },
+  { id: 4, type: "purchase", title: { ar: "جمبري طازج 40 كجم", en: "Fresh shrimp 40 kg" }, amount: 1520, branch: "lulu", requestedBy: MANAGER },
+  { id: 5, type: "overtime", title: { ar: "6 ساعات إضافية يوم الجمعة", en: "6 hours overtime, Friday" }, amount: 180, branch: "lulu", requestedBy: MANAGER },
 ];
 
-/* ---------------------------- Manager ---------------------------- */
+/** Expenses above this amount go to the owner for approval. */
+export const EXPENSE_APPROVAL_LIMIT = 500;
 
-export const EXPENSE_CATEGORIES = [
-  "مواد خام",
-  "كهرباء",
-  "مياه",
-  "غاز",
-  "صيانة",
-  "نظافة ومستلزمات",
-  "مواصلات وتوصيل",
-  "أخرى",
-] as const;
+/* ---------------------------- Custody ---------------------------- */
 
-export interface PettyExpense {
-  id: string;
+export const CUSTODY_CATEGORIES = {
+  food: { ar: "مواد خام وأغذية", en: "Raw materials & food" },
+  pack: { ar: "تغليف ومستلزمات تشغيل", en: "Packaging & supplies" },
+  fuel: { ar: "محروقات وسيارات ومواصلات", en: "Fuel, cars & transport" },
+  sal: { ar: "رواتب وسلف وحوافز", en: "Salaries, advances & bonuses" },
+  rent: { ar: "إيجارات", en: "Rent" },
+  util: { ar: "كهرباء ومياه وإنترنت", en: "Electricity, water & internet" },
+  legal: { ar: "مصروفات قانونية", en: "Legal & government" },
+  maint: { ar: "صيانة", en: "Maintenance" },
+  supp: { ar: "دفعات موردين", en: "Supplier payments" },
+  other: { ar: "أخرى", en: "Other" },
+} satisfies Record<string, L>;
+export type CustodyCategory = keyof typeof CUSTODY_CATEGORIES;
+
+export const CUSTODY_FUNDING = { opening: 2099.75, bank: 5600, cash: 1224, owner: 400 };
+
+export interface CustodyExpense {
+  /** Supplier or person paid; a proper name, shown as written. */
+  payee: string;
+  description: L;
   invoiceNo: string;
   amount: number;
-  category: string;
-  vendor: string;
-  time: string;
+  category: CustodyCategory | "";
 }
 
-export const INITIAL_PETTY_EXPENSES: PettyExpense[] = [
-  { id: "PE-1", invoiceNo: "INV-88412", amount: 420, category: "مواد خام", vendor: "سوق الخضار المركزي", time: "09:15" },
-  { id: "PE-2", invoiceNo: "DEWA-2210", amount: 610, category: "كهرباء", vendor: "هيئة كهرباء ومياه دبي", time: "11:40" },
-  { id: "PE-3", invoiceNo: "C-5521", amount: 230, category: "نظافة ومستلزمات", vendor: "مؤسسة النقاء", time: "14:05" },
+const PETROL: L = { ar: "بترول", en: "Petrol" };
+const ORANGES: L = { ar: "برتقال", en: "Oranges" };
+
+export const INITIAL_CUSTODY: CustodyExpense[] = [
+  { payee: "البيان للغاز", description: { ar: "فاتورة قديمة بتاريخ 8/10", en: "Old invoice dated 8/10" }, invoiceNo: "5666", amount: 770, category: "" },
+  { payee: "مؤسسة البرج للأدوات المنزلية", description: { ar: "معالق وشوك وسكاكين", en: "Spoons, forks and knives" }, invoiceNo: "112847", amount: 294, category: "" },
+  { payee: "التألق لخدمات التنظيف", description: { ar: "آخر دفعة من راتب عاملي نظافة", en: "Last salary payment, 2 cleaners" }, invoiceNo: "9453", amount: 1176, category: "sal" },
+  { payee: "سوق العوير", description: { ar: "خضروات", en: "Vegetables" }, invoiceNo: "8", amount: 433, category: "food" },
+  { payee: "الشويهين لتأجير المواقف", description: { ar: "باركن سيارة دبي", en: "Car parking, Dubai" }, invoiceNo: "38052", amount: 8, category: "fuel" },
+  { payee: "ملحمة الشاهد", description: { ar: "لحوم هندي", en: "Indian meat" }, invoiceNo: "4779", amount: 230, category: "food" },
+  { payee: "مسافي", description: { ar: "فواكه مجمدة", en: "Frozen fruit" }, invoiceNo: "51571", amount: 100, category: "food" },
+  { payee: "محسن رأفت", description: { ar: "دفعة من حسابه", en: "Payment on account" }, invoiceNo: "131", amount: 2000, category: "" },
+  { payee: "برديس", description: { ar: "صيانة خط الغاز الجديد", en: "New gas line maintenance" }, invoiceNo: "130", amount: 200, category: "" },
+  { payee: "أدنوك", description: PETROL, invoiceNo: "15303", amount: 100, category: "fuel" },
+  { payee: "أدنوك", description: PETROL, invoiceNo: "15792", amount: 100, category: "fuel" },
+  { payee: "أدنوك", description: PETROL, invoiceNo: "18555", amount: 50, category: "fuel" },
+  { payee: "ماركة المدينة", description: ORANGES, invoiceNo: "904221", amount: 10, category: "food" },
+  { payee: "ماركة المدينة", description: ORANGES, invoiceNo: "904212", amount: 10, category: "food" },
+  { payee: "ماركة المدينة", description: { ar: "خبز لبناني", en: "Lebanese bread" }, invoiceNo: "904116", amount: 9, category: "food" },
+  { payee: "ماركة المدينة", description: { ar: "ثلج", en: "Ice" }, invoiceNo: "904282", amount: 10, category: "food" },
+  { payee: "القصر الملكي", description: { ar: "موصلات أوردر", en: "Order delivery" }, invoiceNo: "18423", amount: 5, category: "fuel" },
+  { payee: "أحمد الذاكر", description: { ar: "دفعة من مستحقاته", en: "Payment from his dues" }, invoiceNo: "", amount: 400, category: "" },
 ];
 
-export const PETTY_CASH_FLOAT = 5000;
+/* ---------------------------- Supplier prices ---------------------------- */
 
-/* ---------------------------- Accountant ---------------------------- */
-
-export type ReviewType = "petty" | "closing";
-export type ReviewStatus = "pending" | "approved" | "returned";
-
-export interface ReviewItem {
-  id: string;
-  type: ReviewType;
-  branch: BranchId;
-  submittedBy: string;
-  submittedAt: string;
-  amount: number;
-  variance?: number;
-  description: string;
-  suggestedCategory: string;
-  glCategory: string | null;
-  attachments: number;
-  status: ReviewStatus;
-}
-
-export const GL_CATEGORIES = [
-  "تكلفة المواد الغذائية",
-  "تكلفة المشروبات",
-  "مرافق — كهرباء ومياه",
-  "صيانة وإصلاحات",
-  "مستلزمات تشغيل",
-  "نقل ومواصلات",
-  "فروقات نقدية",
-  "إيرادات المبيعات",
-];
-
-export const REVIEW_QUEUE: ReviewItem[] = [
-  { id: "CL-1013-Q", type: "closing", branch: "qasr", submittedBy: "أحمد يوسف", submittedAt: "2026-10-13 23:42", amount: 24720, variance: -50, description: "إغلاق يومي — 13 أكتوبر", suggestedCategory: "فروقات نقدية", glCategory: null, attachments: 2, status: "pending" },
-  { id: "CL-1013-L", type: "closing", branch: "lulu", submittedBy: "رامي حداد", submittedAt: "2026-10-13 23:58", amount: 19960, variance: 0, description: "إغلاق يومي — 13 أكتوبر", suggestedCategory: "إيرادات المبيعات", glCategory: "إيرادات المبيعات", attachments: 2, status: "pending" },
-  { id: "PC-4471", type: "petty", branch: "qasr", submittedBy: "أحمد يوسف", submittedAt: "2026-10-13 18:20", amount: 1260, description: "تقرير عهدة — 3 فواتير (مواد خام، كهرباء، نظافة)", suggestedCategory: "تكلفة المواد الغذائية", glCategory: null, attachments: 3, status: "pending" },
-  { id: "PC-4472", type: "petty", branch: "lulu", submittedBy: "رامي حداد", submittedAt: "2026-10-13 16:05", amount: 845, description: "تقرير عهدة — غاز وصيانة شفاط", suggestedCategory: "صيانة وإصلاحات", glCategory: null, attachments: 2, status: "pending" },
-  { id: "CL-1012-Q", type: "closing", branch: "qasr", submittedBy: "أحمد يوسف", submittedAt: "2026-10-12 23:31", amount: 23640, variance: 35, description: "إغلاق يومي — 12 أكتوبر", suggestedCategory: "فروقات نقدية", glCategory: null, attachments: 2, status: "pending" },
-  { id: "PC-4468", type: "petty", branch: "lulu", submittedBy: "رامي حداد", submittedAt: "2026-10-12 12:47", amount: 310, description: "تقرير عهدة — توصيل وطلبات عاجلة", suggestedCategory: "نقل ومواصلات", glCategory: "نقل ومواصلات", attachments: 1, status: "pending" },
-  { id: "PC-4465", type: "petty", branch: "qasr", submittedBy: "أحمد يوسف", submittedAt: "2026-10-12 10:12", amount: 2900, description: "خلاط صناعي — بانتظار موافقة المالك", suggestedCategory: "صيانة وإصلاحات", glCategory: null, attachments: 1, status: "pending" },
-];
-
-export interface PriceAlert {
-  ingredient: string;
+export interface PriceRow {
+  item: L;
+  unit: Unit;
   supplier: string;
-  unit: string;
-  previous: number;
-  current: number;
-  history: number[]; // last 6 purchase prices, oldest first
-  updatedAt: string;
+  last: number;
+  avg3m: number;
+  best: number;
+  monthlyQty: number;
 }
 
-export const PRICE_ALERTS: PriceAlert[] = [
-  { ingredient: "طماطم", supplier: "مزارع العين", unit: "كغ", previous: 4.0, current: 4.4, history: [3.6, 3.7, 3.8, 3.9, 4.0, 4.4], updatedAt: "اليوم 08:20" },
-  { ingredient: "روبيان جامبو", supplier: "أسماك الحمرية", unit: "كغ", previous: 58, current: 67, history: [54, 55, 55, 57, 58, 67], updatedAt: "اليوم 07:45" },
-  { ingredient: "زيت زيتون بكر", supplier: "الفجر للمواد الغذائية", unit: "لتر", previous: 32, current: 36.5, history: [29, 30, 30, 31, 32, 36.5], updatedAt: "أمس" },
-  { ingredient: "لحم غنم أسترالي", supplier: "مؤسسة الخليج للحوم", unit: "كغ", previous: 41, current: 44, history: [39, 40, 40, 41, 41, 44], updatedAt: "أمس" },
-  { ingredient: "ليمون", supplier: "مزارع العين", unit: "كغ", previous: 6.5, current: 6.9, history: [6.0, 6.2, 6.2, 6.4, 6.5, 6.9], updatedAt: "قبل يومين" },
-  { ingredient: "أرز بسمتي", supplier: "الفجر للمواد الغذائية", unit: "كغ", previous: 8.2, current: 8.5, history: [8.0, 8.0, 8.1, 8.2, 8.2, 8.5], updatedAt: "قبل 3 أيام" },
-  { ingredient: "دجاج طازج", supplier: "مزارع الواحة للدواجن", unit: "كغ", previous: 15.5, current: 14.9, history: [16.0, 15.8, 15.8, 15.6, 15.5, 14.9], updatedAt: "قبل 3 أيام" },
+export const PRICE_ROWS: PriceRow[] = [
+  { item: { ar: "لحم فرم برازيلي", en: "Brazilian minced beef" }, unit: "kg", supplier: "ملحمة الشاهد", last: 27.4, avg3m: 24.5, best: 25.1, monthlyQty: 420 },
+  { item: { ar: "طماطم", en: "Tomatoes" }, unit: "kg", supplier: "سوق العوير", last: 4.2, avg3m: 3.4, best: 3.6, monthlyQty: 300 },
+  { item: { ar: "سلندر غاز صغير", en: "Small gas cylinder" }, unit: "pcs", supplier: "البيان للغاز", last: 85.72, avg3m: 82, best: 82, monthlyQty: 13 },
+  { item: { ar: "فحم", en: "Charcoal" }, unit: "kg", supplier: "الفرس الأسود للفحم", last: 5.38, avg3m: 5.2, best: 5.2, monthlyQty: 280 },
+  { item: { ar: "جمبري طازج", en: "Fresh shrimp" }, unit: "kg", supplier: "Fresh Shrimp Trading", last: 38, avg3m: 36.5, best: 36.5, monthlyQty: 90 },
+  { item: { ar: "أرز مصري", en: "Egyptian rice" }, unit: "kg", supplier: "مورد أرز", last: 3.96, avg3m: 3.9, best: 3.9, monthlyQty: 275 },
+  { item: { ar: "ورق برنت 80×80", en: "Receipt paper 80×80" }, unit: "pcs", supplier: "الهلال", last: 125, avg3m: 125, best: 125, monthlyQty: 1 },
 ];
 
-/* ---------------------------- Chef ---------------------------- */
+/** The same item bought at two prices by the two branches. */
+export const GROUP_BUY = { item: { ar: "اللحم المفروم", en: "minced beef" } as L, qasrPrice: 27.4, luluPrice: 25.1, monthlyQty: 420 };
+
+/* ---------------------------- Expenses ---------------------------- */
+
+export const EXPENSE_CATEGORIES = {
+  maint: { ar: "صيانة", en: "Maintenance" },
+  util: { ar: "كهرباء وماء", en: "Utilities" },
+  clean: { ar: "نظافة", en: "Cleaning" },
+  gas: { ar: "غاز", en: "Gas" },
+  mkt: { ar: "تسويق", en: "Marketing" },
+  other: { ar: "أخرى", en: "Other" },
+} satisfies Record<string, L>;
+export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES;
+
+export interface Expense {
+  id: number;
+  date: string; // dd/mm
+  category: ExpenseCategory;
+  note: L;
+  branch: BranchId;
+  amount: number;
+  hasReceipt: boolean;
+}
+
+export const INITIAL_EXPENSES: Expense[] = [
+  { id: 1, date: "12/10", category: "maint", note: { ar: "صيانة خط الغاز الجديد", en: "New gas line maintenance" }, branch: "qasr", amount: 200, hasReceipt: true },
+  { id: 2, date: "12/10", category: "gas", note: { ar: "سلندرات غاز", en: "Gas cylinders" }, branch: "qasr", amount: 770, hasReceipt: true },
+  { id: 3, date: "12/10", category: "other", note: { ar: "معالق وشوك وسكاكين", en: "Cutlery: spoons, forks, knives" }, branch: "qasr", amount: 294, hasReceipt: true },
+  { id: 4, date: "11/10", category: "clean", note: { ar: "مواد تنظيف", en: "Cleaning supplies" }, branch: "lulu", amount: 145, hasReceipt: true },
+  { id: 5, date: "10/10", category: "util", note: { ar: "فاتورة المياه", en: "Water bill" }, branch: "lulu", amount: 410, hasReceipt: true },
+];
+
+export interface SupplierBill {
+  supplier: string;
+  amount: number;
+  dueInDays: number;
+  paid: boolean;
+}
+
+export const INITIAL_BILLS: SupplierBill[] = [
+  { supplier: "ملحمة الشاهد", amount: 6200, dueInDays: 2, paid: false },
+  { supplier: "البيان للغاز", amount: 1170, dueInDays: 0, paid: false },
+  { supplier: "محسن رأفت", amount: 2000, dueInDays: -3, paid: false },
+];
+
+const MONTHLY: L = { ar: "شهري", en: "Monthly" };
+
+export const RECURRING_EXPENSES: { label: L; amount: number; every: L; next: string }[] = [
+  { label: { ar: "إيجار", en: "Rent" }, amount: 22000, every: MONTHLY, next: "01/11" },
+  { label: { ar: "إنترنت", en: "Internet" }, amount: 1197, every: MONTHLY, next: "05/11" },
+  { label: { ar: "كهرباء وماء", en: "Utilities" }, amount: 4200, every: MONTHLY, next: "15/10" },
+  { label: { ar: "مكافحة حشرات", en: "Pest control" }, amount: 450, every: { ar: "ربع سنوي", en: "Quarterly" }, next: "01/12" },
+];
+
+/* ---------------------------- Inventory ---------------------------- */
 
 export interface StockItem {
-  id: string;
-  name: string;
-  unit: string;
-  cost: number; // per unit
+  name: L;
+  unit: Unit;
+  /** Minimum level and current stock, in location order: warehouse, then BRANCH_IDS. */
+  par: [number, number, number];
+  stock: [number, number, number];
 }
 
-export const STOCK_ITEMS: StockItem[] = [
-  { id: "tomato", name: "طماطم", unit: "كغ", cost: 4.4 },
-  { id: "shrimp", name: "روبيان جامبو", unit: "كغ", cost: 67 },
-  { id: "hammour", name: "سمك هامور", unit: "كغ", cost: 72 },
-  { id: "lamb", name: "لحم غنم", unit: "كغ", cost: 44 },
-  { id: "chicken", name: "دجاج طازج", unit: "كغ", cost: 14.9 },
-  { id: "rice", name: "أرز بسمتي (مطبوخ)", unit: "كغ", cost: 8.5 },
-  { id: "bread", name: "خبز عربي", unit: "ربطة", cost: 3 },
-  { id: "cream", name: "كريمة طبخ", unit: "لتر", cost: 18 },
-  { id: "lettuce", name: "خس روماني", unit: "حبة", cost: 4.5 },
-  { id: "hummus", name: "حمص مجهز", unit: "كغ", cost: 12 },
+export const SHRIMP: L = { ar: "جمبري طازج", en: "Fresh shrimp" };
+
+export const INITIAL_STOCK: StockItem[] = [
+  { name: { ar: "لحم فرم برازيلي", en: "Brazilian minced beef" }, unit: "kg", par: [150, 30, 10], stock: [180, 6, 12] },
+  { name: { ar: "صدور دجاج", en: "Chicken breast" }, unit: "kg", par: [120, 25, 15], stock: [140, 22, 9] },
+  { name: SHRIMP, unit: "kg", par: [40, 5, 15], stock: [30, 4, 3] },
+  { name: { ar: "أرز مصري", en: "Egyptian rice" }, unit: "kg", par: [300, 50, 40], stock: [275, 38, 31] },
+  { name: { ar: "طماطم", en: "Tomatoes" }, unit: "kg", par: [100, 25, 15], stock: [60, 7, 12] },
+  { name: { ar: "فحم", en: "Charcoal" }, unit: "kg", par: [300, 60, 30], stock: [280, 45, 8] },
+  { name: { ar: "سلندر غاز صغير", en: "Small gas cylinder" }, unit: "pcs", par: [10, 4, 3], stock: [6, 3, 1] },
+  { name: { ar: "علب تغليف", en: "Takeaway boxes" }, unit: "pcs", par: [3000, 500, 400], stock: [2600, 420, 150] },
 ];
 
-export type WasteReason = "expired" | "burnt" | "staff_meal";
+/** Stock below this share of the minimum level counts as low. */
+export const LOW_STOCK_RATIO = 0.35;
 
-export const WASTE_REASONS: { id: WasteReason; label: string }[] = [
-  { id: "expired", label: "منتهي الصلاحية" },
-  { id: "burnt", label: "محروق / تالف" },
-  { id: "staff_meal", label: "وجبة موظفين" },
-];
-
-export interface WasteEntry {
-  id: string;
-  itemId: string;
-  qty: number;
-  reason: WasteReason;
-  note: string;
-  time: string;
-}
-
-export const INITIAL_WASTE: WasteEntry[] = [
-  { id: "W-1", itemId: "lettuce", qty: 6, reason: "expired", note: "ذبول بسبب حرارة غرفة التبريد", time: "08:10" },
-  { id: "W-2", itemId: "rice", qty: 2.5, reason: "staff_meal", note: "", time: "15:30" },
-  { id: "W-3", itemId: "shrimp", qty: 0.4, reason: "burnt", note: "طلب طاولة 12 أعيد تحضيره", time: "20:45" },
-];
-
-export interface Recipe {
-  id: string;
-  name: string;
-  category: string;
-  yield: number; // portions per batch
-  portion: string;
-  prepMinutes: number;
-  ingredients: { name: string; qty: number; unit: string }[];
-  notes?: string;
-}
-
-export const RECIPES: Recipe[] = [
-  {
-    id: "machboos",
-    name: "مجبوس لحم",
-    category: "أطباق رئيسية",
-    yield: 10,
-    portion: "450 غ",
-    prepMinutes: 120,
-    ingredients: [
-      { name: "لحم غنم بالعظم", qty: 2.5, unit: "كغ" },
-      { name: "أرز بسمتي", qty: 1.5, unit: "كغ" },
-      { name: "بصل", qty: 0.6, unit: "كغ" },
-      { name: "طماطم", qty: 0.5, unit: "كغ" },
-      { name: "بهارات مجبوس", qty: 60, unit: "غ" },
-      { name: "لومي (ليمون أسود)", qty: 4, unit: "حبة" },
-      { name: "سمن", qty: 120, unit: "مل" },
-    ],
-    notes: "يُقدّم مع دقوس الطماطم. الحصة تشمل 180 غ لحم بعد الطبخ.",
-  },
-  {
-    id: "shrimp-saloona",
-    name: "صالونة روبيان",
-    category: "مأكولات بحرية",
-    yield: 6,
-    portion: "350 غ",
-    prepMinutes: 45,
-    ingredients: [
-      { name: "روبيان جامبو منظف", qty: 1.2, unit: "كغ" },
-      { name: "طماطم", qty: 0.8, unit: "كغ" },
-      { name: "كوسا", qty: 0.4, unit: "كغ" },
-      { name: "بصل", qty: 0.3, unit: "كغ" },
-      { name: "بهارات بزار", qty: 35, unit: "غ" },
-      { name: "كزبرة طازجة", qty: 1, unit: "ربطة" },
-    ],
-  },
-  {
-    id: "grilled-hammour",
-    name: "هامور مشوي",
-    category: "مأكولات بحرية",
-    yield: 4,
-    portion: "300 غ",
-    prepMinutes: 25,
-    ingredients: [
-      { name: "فيليه هامور", qty: 1.2, unit: "كغ" },
-      { name: "ليمون", qty: 0.2, unit: "كغ" },
-      { name: "ثوم", qty: 40, unit: "غ" },
-      { name: "زيت زيتون", qty: 60, unit: "مل" },
-      { name: "كمون وفلفل", qty: 15, unit: "غ" },
-    ],
-  },
-  {
-    id: "fattoush",
-    name: "فتوش",
-    category: "مقبلات وسلطات",
-    yield: 8,
-    portion: "220 غ",
-    prepMinutes: 20,
-    ingredients: [
-      { name: "خس روماني", qty: 3, unit: "حبة" },
-      { name: "طماطم", qty: 0.6, unit: "كغ" },
-      { name: "خيار", qty: 0.5, unit: "كغ" },
-      { name: "خبز عربي محمص", qty: 2, unit: "ربطة" },
-      { name: "دبس رمان", qty: 80, unit: "مل" },
-      { name: "سماق", qty: 20, unit: "غ" },
-      { name: "زيت زيتون", qty: 100, unit: "مل" },
-    ],
-  },
-  {
-    id: "hummus",
-    name: "حمص بالطحينة",
-    category: "مقبلات وسلطات",
-    yield: 12,
-    portion: "180 غ",
-    prepMinutes: 30,
-    ingredients: [
-      { name: "حمص مسلوق", qty: 1.6, unit: "كغ" },
-      { name: "طحينة", qty: 0.45, unit: "كغ" },
-      { name: "ليمون (عصير)", qty: 150, unit: "مل" },
-      { name: "ثوم", qty: 30, unit: "غ" },
-      { name: "ملح", qty: 18, unit: "غ" },
-    ],
-  },
-  {
-    id: "luqaimat",
-    name: "لقيمات بالدبس",
-    category: "حلويات",
-    yield: 15,
-    portion: "8 حبات",
-    prepMinutes: 90,
-    ingredients: [
-      { name: "طحين", qty: 1, unit: "كغ" },
-      { name: "خميرة", qty: 15, unit: "غ" },
-      { name: "هيل مطحون", qty: 8, unit: "غ" },
-      { name: "زعفران", qty: 1, unit: "غ" },
-      { name: "دبس تمر", qty: 0.4, unit: "كغ" },
-    ],
-  },
-];
-
-/* ---------------------------- Purchaser ---------------------------- */
+/* ---------------------------- Purchasing ---------------------------- */
 
 export type POStatus = "draft" | "sent" | "received";
-
-export interface POLine {
-  itemId: string;
-  name: string;
-  unit: string;
-  qty: number;
-  price: number;
-}
 
 export interface PurchaseOrder {
   id: string;
   supplier: string;
-  branch: BranchId;
-  createdAt: string;
-  expectedAt: string;
+  due: L;
+  total: number;
   status: POStatus;
-  lines: POLine[];
 }
 
-/** Last purchase price per item; updated when goods are received. */
-export const INITIAL_PRICE_BOOK: Record<string, { price: number; updatedAt: string }> = {
-  tomato: { price: 4.4, updatedAt: "14 أكتوبر" },
-  cucumber: { price: 3.8, updatedAt: "11 أكتوبر" },
-  lemon: { price: 6.9, updatedAt: "12 أكتوبر" },
-  onion: { price: 2.6, updatedAt: "10 أكتوبر" },
-  shrimp: { price: 67, updatedAt: "14 أكتوبر" },
-  hammour: { price: 72, updatedAt: "9 أكتوبر" },
-  lamb: { price: 44, updatedAt: "13 أكتوبر" },
-  chicken: { price: 14.9, updatedAt: "11 أكتوبر" },
-  rice: { price: 8.5, updatedAt: "11 أكتوبر" },
-  oil: { price: 36.5, updatedAt: "13 أكتوبر" },
-};
+export const TOMORROW: L = { ar: "غدًا", en: "Tomorrow" };
 
-export const PURCHASE_ORDERS: PurchaseOrder[] = [
+export const INITIAL_POS: PurchaseOrder[] = [
+  { id: "PO-1042", supplier: "ملحمة الشاهد", due: { ar: "اليوم 14:00", en: "Today 14:00" }, total: 2860, status: "sent" },
+  { id: "PO-1041", supplier: "سوق العوير", due: { ar: "اليوم 09:30", en: "Today 09:30" }, total: 433, status: "received" },
+  { id: "PO-1043", supplier: "الفرس الأسود للفحم", due: TOMORROW, total: 1505, status: "draft" },
+];
+
+/** Draft orders created by "create orders for low stock". */
+export const LOW_STOCK_ORDERS = [
+  { supplier: "ملحمة الشاهد", total: 1240 },
+  { supplier: "سوق العوير", total: 860 },
+  { supplier: "الفرس الأسود للفحم", total: 640 },
+];
+
+export const SUPPLIERS: { name: string; type: L; spend: number; onTime: number }[] = [
+  { name: "ملحمة الشاهد", type: { ar: "لحوم", en: "Meat" }, spend: 18400, onTime: 96 },
+  { name: "سوق العوير", type: { ar: "خضار وفواكه", en: "Vegetables & fruit" }, spend: 6665, onTime: 99 },
+  { name: "الفرس الأسود للفحم", type: { ar: "فحم", en: "Charcoal" }, spend: 1580, onTime: 91 },
+  { name: "البيان للغاز", type: { ar: "غاز", en: "Gas" }, spend: 1170, onTime: 94 },
+];
+
+/* ---------------------------- Menu costing ---------------------------- */
+
+export interface Recipe {
+  name: L;
+  price: number;
+  /** [ingredient, quantity, unit, unit cost] */
+  ingredients: [L, number, Unit, number][];
+}
+
+const ing = (ar: string, en: string): L => ({ ar, en });
+const CHARCOAL = ing("فحم", "Charcoal");
+const RICE = ing("أرز مصري", "Egyptian rice");
+const SAYADEYA = ing("أرز صيادية", "Sayadeya rice");
+const SALAD = ing("سلطة", "Salad");
+
+export const RECIPES: Recipe[] = [
   {
-    id: "PO-2041",
-    supplier: "مزارع العين",
-    branch: "qasr",
-    createdAt: "13 أكتوبر",
-    expectedAt: "اليوم 10:00",
-    status: "sent",
-    lines: [
-      { itemId: "tomato", name: "طماطم", unit: "كغ", qty: 40, price: 4.4 },
-      { itemId: "cucumber", name: "خيار", unit: "كغ", qty: 25, price: 3.8 },
-      { itemId: "lemon", name: "ليمون", unit: "كغ", qty: 15, price: 6.9 },
-      { itemId: "onion", name: "بصل", unit: "كغ", qty: 30, price: 2.6 },
+    name: ing("كفتة مشوية", "Grilled kofta"),
+    price: 34,
+    ingredients: [
+      [ing("لحم فرم برازيلي", "Brazilian minced beef"), 0.3, "kg", 27.4],
+      [ing("بصل وبقدونس", "Onion & parsley"), 0.05, "kg", 6],
+      [ing("بهارات", "Spices"), 0.01, "kg", 45],
+      [CHARCOAL, 0.15, "kg", 5.38],
+      [RICE, 0.2, "kg", 3.96],
+      [ing("خبز وسلطة", "Bread & salad"), 1, "pcs", 1.2],
     ],
   },
   {
-    id: "PO-2042",
-    supplier: "أسماك الحمرية",
-    branch: "lulu",
-    createdAt: "13 أكتوبر",
-    expectedAt: "اليوم 07:30",
-    status: "sent",
-    lines: [
-      { itemId: "shrimp", name: "روبيان جامبو", unit: "كغ", qty: 20, price: 67 },
-      { itemId: "hammour", name: "سمك هامور", unit: "كغ", qty: 18, price: 72 },
+    name: ing("مشويات مشكلة", "Mixed grill"),
+    price: 75,
+    ingredients: [
+      [ing("كباب لحم", "Lamb kebab"), 0.2, "kg", 48],
+      [ing("شيش طاووق", "Shish tawook"), 0.15, "kg", 22],
+      [ing("كفتة", "Kofta"), 0.15, "kg", 27.4],
+      [CHARCOAL, 0.25, "kg", 5.38],
+      [RICE, 0.2, "kg", 3.96],
+      [ing("سلطات", "Salads"), 1, "pcs", 2],
     ],
   },
   {
-    id: "PO-2043",
-    supplier: "مؤسسة الخليج للحوم",
-    branch: "qasr",
-    createdAt: "14 أكتوبر",
-    expectedAt: "16 أكتوبر",
-    status: "draft",
-    lines: [
-      { itemId: "lamb", name: "لحم غنم", unit: "كغ", qty: 120, price: 44 },
-      { itemId: "chicken", name: "دجاج طازج", unit: "كغ", qty: 80, price: 14.9 },
+    name: ing("هامور مشوي", "Grilled hammour"),
+    price: 85,
+    ingredients: [
+      [ing("هامور", "Hammour"), 0.45, "kg", 55],
+      [ing("ليمون وبهارات", "Lemon & spices"), 1, "pcs", 0.5],
+      [SAYADEYA, 0.25, "kg", 4.5],
+      [SALAD, 1, "pcs", 2],
+      [CHARCOAL, 0.2, "kg", 5.38],
     ],
   },
   {
-    id: "PO-2044",
-    supplier: "الفجر للمواد الغذائية",
-    branch: "lulu",
-    createdAt: "14 أكتوبر",
-    expectedAt: "17 أكتوبر",
-    status: "draft",
-    lines: [
-      { itemId: "rice", name: "أرز بسمتي", unit: "كغ", qty: 100, price: 8.5 },
-      { itemId: "oil", name: "زيت زيتون بكر", unit: "لتر", qty: 20, price: 36.5 },
+    name: ing("جمبري مشوي", "Grilled shrimp"),
+    price: 70,
+    ingredients: [
+      [SHRIMP, 0.35, "kg", 38],
+      [ing("زبدة وثوم", "Butter & garlic"), 0.03, "kg", 30],
+      [SAYADEYA, 0.25, "kg", 4.5],
+      [SALAD, 1, "pcs", 2],
     ],
   },
   {
-    id: "PO-2038",
-    supplier: "مزارع الواحة للدواجن",
-    branch: "lulu",
-    createdAt: "10 أكتوبر",
-    expectedAt: "11 أكتوبر",
-    status: "received",
-    lines: [{ itemId: "chicken", name: "دجاج طازج", unit: "كغ", qty: 60, price: 14.9 }],
+    name: ing("شيش طاووق", "Shish tawook"),
+    price: 42,
+    ingredients: [
+      [ing("صدور دجاج", "Chicken breast"), 0.3, "kg", 22],
+      [ing("تتبيلة", "Marinade"), 0.04, "kg", 18],
+      [CHARCOAL, 0.15, "kg", 5.38],
+      [RICE, 0.2, "kg", 3.96],
+      [ing("خبز وثومية", "Bread & garlic sauce"), 1, "pcs", 1.4],
+    ],
   },
 ];
+
+export const TARGET_FOOD_COST = 0.3;
+
+/* ---------------------------- Central kitchens ---------------------------- */
+
+export type DeliveryStatus = "delivered" | "dispatched" | "preparing";
+
+export interface KitchenDelivery {
+  time: string;
+  /** A branch id for deliveries to our restaurants, otherwise the outside client's name. */
+  client: BranchId | L;
+  items: L;
+  amount: number;
+  status: DeliveryStatus;
+}
+
+const CORPORATE: L = { ar: "عميل تموين شركات", en: "Corporate catering client" };
+const PRIVATE_EVENT: L = { ar: "مناسبة خاصة", en: "Private event" };
+
+export const KITCHEN_DELIVERIES: KitchenDelivery[] = [
+  { time: "07:30", client: "qasr", items: { ar: "كفتة متبلة 40 كجم، صوصات", en: "Marinated kofta 40 kg, sauces" }, amount: 2140, status: "delivered" },
+  { time: "08:15", client: "lulu", items: { ar: "سمك متبل 25 كجم، أرز صيادية", en: "Marinated fish 25 kg, sayadeya rice" }, amount: 1860, status: "delivered" },
+  { time: "12:00", client: CORPORATE, items: { ar: "وجبات موظفين ×120", en: "Staff meals ×120" }, amount: 3600, status: "dispatched" },
+  { time: "19:00", client: PRIVATE_EVENT, items: { ar: "بوفيه 60 شخص", en: "Buffet, 60 guests" }, amount: 4800, status: "preparing" },
+];
+
+export const KITCHEN_INVOICES: { id: string; client: L; amount: number; ageDays: number }[] = [
+  { id: "INV-2207", client: CORPORATE, amount: 12400, ageDays: 12 },
+  { id: "INV-2211", client: PRIVATE_EVENT, amount: 3150, ageDays: 5 },
+  { id: "INV-2189", client: { ar: "تموين معسكر إنشاءات", en: "Construction camp catering" }, amount: 6800, ageDays: 38 },
+];
+
+/* ---------------------------- Phase 2 previews ---------------------------- */
+
+export type StaffStatus = "present" | "late" | "off";
+
+export const STAFF: { name: L; role: L; branch: BranchId; shift: string; status: StaffStatus }[] = [
+  { name: { ar: "رامي", en: "Rami" }, role: { ar: "مدير", en: "Manager" }, branch: "qasr", shift: "10:00–22:00", status: "present" },
+  { name: { ar: "سناء", en: "Sana" }, role: { ar: "مديرة", en: "Manager" }, branch: "lulu", shift: "11:00–23:00", status: "present" },
+  { name: { ar: "جوزيف", en: "Joseph" }, role: { ar: "كاشير", en: "Cashier" }, branch: "qasr", shift: "14:00–00:00", status: "late" },
+  { name: { ar: "علي", en: "Ali" }, role: { ar: "شيف", en: "Chef" }, branch: "lulu", shift: "10:00–20:00", status: "present" },
+  { name: { ar: "ماريا", en: "Maria" }, role: { ar: "ويتر", en: "Waiter" }, branch: "lulu", shift: "07:00–15:00", status: "off" },
+];
+
+/** Counted minus system stock at Al Qasr for the first five inventory items. */
+export const STOCK_COUNT_DIFFS = [0, -2, -1.5, 0, -0.5];
+export const WASTE_THIS_MONTH = 1840;
+export const MONTHLY_TARGETS: PerBranch<number> = { qasr: 110000, lulu: 85000 };

@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
+import { LangProvider } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  title: "تيست آند فن | نظام التشغيل والتحكم بالتكاليف",
+  title: "Taste & Fun | تيست آند فن",
   description: "Taste & Fun Operations & Cost Control System — UI Demo",
 };
 
@@ -25,7 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
-        <AuthProvider>{children}</AuthProvider>
+        <LangProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </LangProvider>
       </body>
     </html>
   );
