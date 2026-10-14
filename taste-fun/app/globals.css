@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #d9eaff;
+  --color-brand-500: #2a78d6;
+  --color-brand-600: #1f63b8;
+  --color-brand-700: #1a5096;
+  --color-series-1: #2a78d6;
+  --color-series-2: #eb6834;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #f6f7f9;
+  color: #0f172a;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers stay LTR inside RTL text so signs and separators read correctly */
+.num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
