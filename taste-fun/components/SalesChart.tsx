@@ -2,20 +2,16 @@
 
 import { useState } from "react";
 import { BarChart3, Table2 } from "lucide-react";
-import { BRANCHES, type DailySales } from "@/lib/mock-data";
+import { BRANCH_IDS, SERIES_COLOR, type DailySales, type PerBranch } from "@/lib/mock-data";
 import { CURRENCY, cn, fmt } from "@/lib/format";
 import { Segmented } from "./ui";
 
-const SERIES = [
-  { key: "qasr" as const, label: BRANCHES.qasr, color: "var(--color-series-1)" },
-  { key: "lulu" as const, label: BRANCHES.lulu, color: "var(--color-series-2)" },
-];
 
 const dayFmt = new Intl.DateTimeFormat("ar-AE-u-nu-latn", { day: "numeric", month: "short" });
 const weekdayFmt = new Intl.DateTimeFormat("ar-AE", { weekday: "long" });
 
 function niceMax(v: number) {
-  const step = 20000;
+  const step = v > 20000 ? 20000 : 2000;
   return Math.ceil(v / step) * step;
 }
 
@@ -23,7 +19,8 @@ function niceMax(v: number) {
  * Stacked daily sales per branch. Time runs in reading direction (RTL):
  * oldest day on the right, today on the left.
  */
-export function SalesChart({ data }: { data: DailySales[] }) {
+export function SalesChart({ data, names }: { data: DailySales[]; names: PerBranch<string> }) {
+  const SERIES = BRANCH_IDS.map((key) => ({ key, label: names[key], color: SERIES_COLOR[key] }));
   const [view, setView] = useState<"chart" | "table">("chart");
   const [hover, setHover] = useState<number | null>(null);
 
@@ -139,7 +136,7 @@ export function SalesChart({ data }: { data: DailySales[] }) {
             <div className="relative h-64 w-10 shrink-0 text-[11px] text-slate-400">
               {ticks.map((t) => (
                 <span key={t} className="num absolute start-0 translate-y-1/2" style={{ bottom: `${(t / max) * 100}%` }}>
-                  {t === 0 ? "0" : `${t / 1000}k`}
+                  {t === 0 ? "0" : `${+(t / 1000).toFixed(1)}k`}
                 </span>
               ))}
             </div>
@@ -166,8 +163,8 @@ export function SalesChart({ data }: { data: DailySales[] }) {
             <thead className="sticky top-0 bg-white text-xs text-slate-500">
               <tr className="border-b border-slate-200">
                 <th className="py-2 text-start font-medium">التاريخ</th>
-                <th className="py-2 text-end font-medium">{BRANCHES.qasr}</th>
-                <th className="py-2 text-end font-medium">{BRANCHES.lulu}</th>
+                <th className="py-2 text-end font-medium">{names.qasr}</th>
+                <th className="py-2 text-end font-medium">{names.lulu}</th>
                 <th className="py-2 text-end font-medium">الإجمالي</th>
               </tr>
             </thead>

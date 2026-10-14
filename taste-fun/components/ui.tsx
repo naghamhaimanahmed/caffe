@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/format";
 
 export function Card({
@@ -231,28 +229,4 @@ export function EmptyState({ icon, title, text }: { icon: React.ReactNode; title
       {text && <p className="mt-1 text-xs text-slate-500">{text}</p>}
     </div>
   );
-}
-
-/** Lightweight toast: render with a message, it disappears on its own. */
-export function useToast() {
-  const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => {
-    if (!msg) return;
-    const t = setTimeout(() => setMsg(null), 3000);
-    return () => clearTimeout(t);
-  }, [msg]);
-
-  const node = msg ? (
-    <div className="fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-6" role="status">
-      <div className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg">
-        <CheckCircle2 className="size-4 text-emerald-400" />
-        {msg}
-        <button onClick={() => setMsg(null)} className="ms-2 text-slate-400 hover:text-white" aria-label="إغلاق">
-          <X className="size-4" />
-        </button>
-      </div>
-    </div>
-  ) : null;
-
-  return { show: setMsg, node };
 }
